@@ -4,6 +4,7 @@ import tempfile
 import asyncio
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from groq import Groq
 import edge_tts
 from streamlit_mic_recorder import mic_recorder
@@ -227,6 +228,43 @@ iframe {
     background: transparent !important;
 }
 
+/* "Browse files" button */
+[data-testid="stFileUploader"] button,
+[data-testid="stBaseButton-secondary"] {
+    background: linear-gradient(180deg, #16321f, #0c2015) !important;
+    color: #eafff1 !important;
+    border: 1px solid rgba(34,197,94,0.55) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 0 16px rgba(34,197,94,0.2) !important;
+}
+[data-testid="stFileUploader"] button:hover {
+    border-color: #22c55e !important;
+    box-shadow: 0 0 24px rgba(34,197,94,0.4) !important;
+}
+[data-testid="stFileUploader"] small { color: #8fb8a0 !important; }
+
+/* Uploaded-file preview chip */
+[data-testid="stFileUploaderFile"],
+[data-testid="stFileUploaderFile"] * ,
+[class*="fileUploaderFile"],
+[class*="fileUploaderFile"] * {
+    background: transparent !important;
+    color: #eafff1 !important;
+}
+[data-testid="stFileUploaderFile"] {
+    background: rgba(15,38,24,0.9) !important;
+    border: 1px solid rgba(34,197,94,0.3) !important;
+    border-radius: 12px !important;
+    padding: 6px 10px !important;
+}
+[data-testid="stFileUploaderFile"] svg,
+[class*="fileUploaderFile"] svg {
+    fill: #6ee7a4 !important;
+    stroke: #6ee7a4 !important;
+}
+[data-testid="stFileUploaderFileName"] { color: #eafff1 !important; }
+[data-testid="stFileUploaderFileSize"], small[class*="fileUploaderFileData"] { color: #8fb8a0 !important; }
+
 .kv-divider { text-align:center; color:#3f6650; margin: 8px 0 30px 0; font-size: 12px; letter-spacing:3px; text-transform:uppercase; }
 .kv-divider::before, .kv-divider::after { content:""; }
 
@@ -275,6 +313,54 @@ st.markdown("""
     <div class="kv-mic-caption-en">Tap the mic and ask your farming question in Urdu</div>
 """, unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
+
+# The mic button is rendered by streamlit_mic_recorder inside its own sandboxed
+# iframe, so page-level CSS can't reach it. This invisible helper iframe reaches
+# up to the parent page, finds that iframe (same-origin), and injects a
+# stylesheet into it so the button matches the rest of the theme. Re-applied on
+# an interval since Streamlit can redraw the component on rerun.
+components.html("""
+<script>
+function kvStyleMicRecorder() {
+    try {
+        const doc = window.parent.document;
+        const frames = doc.querySelectorAll('iframe');
+        frames.forEach(f => {
+            const title = (f.title || "").toLowerCase();
+            if (title.includes("mic_recorder")) {
+                const idoc = f.contentDocument || (f.contentWindow && f.contentWindow.document);
+                if (idoc && idoc.head && !idoc.getElementById('kv-mic-style')) {
+                    const style = idoc.createElement('style');
+                    style.id = 'kv-mic-style';
+                    style.innerHTML = `
+                        body { background: transparent !important; }
+                        .myButton {
+                            background: linear-gradient(180deg, #16321f, #0c2015) !important;
+                            border: 1px solid rgba(34,197,94,0.55) !important;
+                            color: #eafff1 !important;
+                            border-radius: 999px !important;
+                            padding: 12px 28px !important;
+                            font-weight: 600 !important;
+                            font-size: 15px !important;
+                            font-family: 'Poppins', sans-serif !important;
+                            box-shadow: 0 0 20px rgba(34,197,94,0.25) !important;
+                            transition: box-shadow 0.2s ease, border-color 0.2s ease;
+                        }
+                        .myButton:hover {
+                            border-color: #22c55e !important;
+                            box-shadow: 0 0 28px rgba(34,197,94,0.5) !important;
+                        }
+                    `;
+                    idoc.head.appendChild(style);
+                }
+            }
+        });
+    } catch (e) { /* cross-origin fallback: silently skip */ }
+}
+kvStyleMicRecorder();
+setInterval(kvStyleMicRecorder, 700);
+</script>
+""", height=0)
 
 st.markdown("""
 <div class="kv-chips">
