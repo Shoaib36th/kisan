@@ -1,0 +1,8 @@
+streamlit
+streamlit-mic-recorder
+requests
+groq
+edge-tts
+transformers
+torch
+pillow
