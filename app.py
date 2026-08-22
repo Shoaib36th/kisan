@@ -127,16 +127,163 @@ def text_to_speech_neural(text, voice="ur-PK-AsadNeural"):
 # STREAMLIT UI
 # ============================================================
 
-st.set_page_config(page_title="Kisan Voice Advisor", page_icon="🌾")
-st.title("🌾 Kisan Voice Advisor")
-st.write("Click the mic button, ask your farming question in Urdu, and listen to the reply.")
+st.set_page_config(page_title="Kisan Voice Advisor", page_icon="🌾", layout="centered")
+
+# ---------------- Global theme / CSS ----------------
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@600;700&family=Poppins:wght@400;600;700;800&display=swap');
+
+html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
+
+.stApp {
+    background:
+        linear-gradient(rgba(5,19,11,0.96), rgba(5,19,11,0.98)),
+        repeating-linear-gradient(0deg, rgba(34,197,94,0.06) 0px, rgba(34,197,94,0.06) 1px, transparent 1px, transparent 40px),
+        repeating-linear-gradient(90deg, rgba(34,197,94,0.06) 0px, rgba(34,197,94,0.06) 1px, transparent 1px, transparent 40px),
+        #05130b;
+    color: #eafff1;
+}
+
+#MainMenu, footer, header {visibility: hidden;}
+
+.kv-navbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 4px 22px 4px; border-bottom: 1px solid rgba(34,197,94,0.15);
+    margin-bottom: 28px;
+}
+.kv-brand { display: flex; align-items: center; gap: 12px; }
+.kv-logo {
+    font-size: 26px;
+    filter: drop-shadow(0 0 10px rgba(34,197,94,0.8));
+}
+.kv-brand-text .kv-title-en { font-weight: 800; font-size: 19px; color: #f4fff7; line-height: 1.1; }
+.kv-brand-text .kv-title-ur { font-family: 'Noto Nastaliq Urdu', serif; color: #9be8ac; font-size: 15px; }
+.kv-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.45);
+    color: #6ee7a4; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 600;
+}
+
+.kv-hero { text-align: center; padding: 10px 0 34px 0; }
+.kv-hero-icon { font-size: 44px; filter: drop-shadow(0 0 18px rgba(34,197,94,0.9)); margin-bottom: 6px; }
+.kv-hero-ur {
+    font-family: 'Noto Nastaliq Urdu', serif; font-size: 26px; color: #ffd75e;
+    text-shadow: 0 0 14px rgba(255,215,94,0.35); margin: 6px 0 14px 0; direction: rtl;
+}
+.kv-hero h1 {
+    font-size: 40px; font-weight: 800; line-height: 1.15; margin: 0;
+    color: #f4fff7;
+}
+.kv-hero h1 .grad {
+    background: linear-gradient(90deg, #22c55e, #bff56a);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 26px rgba(34,197,94,0.35);
+}
+.kv-hero p { color: #a9c9b6; font-size: 15.5px; margin-top: 14px; max-width: 480px; margin-left:auto; margin-right:auto; }
+
+.kv-card {
+    background: linear-gradient(180deg, rgba(15,38,24,0.75), rgba(8,24,15,0.75));
+    border: 1px solid rgba(34,197,94,0.22);
+    border-radius: 22px; padding: 28px 24px; margin-bottom: 22px;
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.03), 0 20px 50px -20px rgba(0,0,0,0.6);
+}
+.kv-section-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Noto Nastaliq Urdu', serif; font-size: 20px; color: #eafff1;
+    margin-bottom: 2px; direction: rtl;
+}
+.kv-section-label-en {
+    font-size: 11px; letter-spacing: 2px; color: #6ee7a4; text-transform: uppercase;
+    margin-bottom: 14px; margin-top: 2px; font-weight: 600;
+}
+.kv-mic-wrap { text-align: center; padding: 6px 0 4px 0; }
+.kv-mic-caption-ur { font-family: 'Noto Nastaliq Urdu', serif; color: #6ee7a4; font-size: 18px; margin-top: 14px; direction: rtl; }
+.kv-mic-caption-en { color: #8fb8a0; font-size: 13px; margin-top: 2px; }
+
+.kv-chips { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+.kv-chip {
+    font-family: 'Noto Nastaliq Urdu', serif; direction: rtl;
+    border: 1px solid rgba(34,197,94,0.3); background: rgba(34,197,94,0.06);
+    color: #dff7e6; padding: 8px 16px; border-radius: 999px; font-size: 14px;
+}
+
+/* mic_recorder component container glow */
+iframe {
+    filter: drop-shadow(0 0 24px rgba(34,197,94,0.25));
+}
+
+/* File uploader restyle to look like the dropzone mock */
+[data-testid="stFileUploader"] {
+    border: 2px dashed rgba(34,197,94,0.4) !important;
+    border-radius: 18px !important;
+    background: rgba(34,197,94,0.04) !important;
+    padding: 10px !important;
+}
+[data-testid="stFileUploaderDropzone"] {
+    background: transparent !important;
+}
+[data-testid="stFileUploader"] section {
+    background: transparent !important;
+}
+
+.kv-divider { text-align:center; color:#3f6650; margin: 8px 0 30px 0; font-size: 12px; letter-spacing:3px; text-transform:uppercase; }
+.kv-divider::before, .kv-divider::after { content:""; }
+
+.kv-footnote { color: #7fa48c; font-size: 12.5px; text-align:center; margin-top: 10px; }
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- Navbar ----------------
+st.markdown("""
+<div class="kv-navbar">
+    <div class="kv-brand">
+        <div class="kv-logo">🌾</div>
+        <div class="kv-brand-text">
+            <div class="kv-title-en">Kisan Voice Advisor</div>
+            <div class="kv-title-ur">کسان وائس ایڈوائزر</div>
+        </div>
+    </div>
+    <div class="kv-badge">🔊 Urdu Voice AI</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ---------------- Hero ----------------
+st.markdown("""
+<div class="kv-hero">
+    <div class="kv-hero-icon">🌾</div>
+    <div class="kv-hero-ur">اپنی زبان میں سوال پوچھیں</div>
+    <h1>Your farm, <span class="grad">heard &amp;<br/>answered</span></h1>
+    <p>Speak your farming question in Urdu and listen to instant expert advice —
+    or scan a sick leaf and get a treatment plan in seconds.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------------- Voice Q&A ----------------
+st.markdown('<div class="kv-card">', unsafe_allow_html=True)
+st.markdown('<div class="kv-section-label">آواز سے پوچھیں</div>', unsafe_allow_html=True)
+st.markdown('<div class="kv-section-label-en">Ask by voice</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="kv-mic-wrap">', unsafe_allow_html=True)
 audio = mic_recorder(
     start_prompt="🎤 Speak your question",
     stop_prompt="⏹ Stop recording",
     key="recorder"
 )
+st.markdown("""
+    <div class="kv-mic-caption-ur">مائیک دبائیں اور سوال پوچھیں</div>
+    <div class="kv-mic-caption-en">Tap the mic and ask your farming question in Urdu</div>
+""", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown("""
+<div class="kv-chips">
+    <div class="kv-chip">میرے گندم کے پتوں پر پیلے دھبے ہیں، کیا کروں؟</div>
+    <div class="kv-chip">کپاس کو کتنا پانی دوں؟</div>
+    <div class="kv-chip">گندم کے لیے کون سی کھاد بہتر ہے؟</div>
+</div>
+""", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 if audio and audio.get("id") != st.session_state.get("last_audio_id"):
     st.session_state["last_audio_id"] = audio["id"]
@@ -163,11 +310,17 @@ if audio and audio.get("id") != st.session_state.get("last_audio_id"):
     else:
         st.warning("Audio was unclear. Please try recording again, speaking clearly.")
 
-st.divider()
+st.markdown('<div class="kv-divider">— or —</div>', unsafe_allow_html=True)
 
 # ---------------- Crop Disease Photo Upload ----------------
-st.subheader("📷 Or upload a photo of a sick crop")
-uploaded_image = st.file_uploader("Upload a leaf photo", type=["jpg", "jpeg", "png"])
+st.markdown('<div class="kv-card">', unsafe_allow_html=True)
+st.markdown('<div class="kv-section-label">📷 فصل کی تصویر سکین کریں</div>', unsafe_allow_html=True)
+st.markdown('<div class="kv-section-label-en">Scan a sick crop</div>', unsafe_allow_html=True)
+uploaded_image = st.file_uploader(
+    "پتے کی تصویر یہاں ڈالیں یا منتخب کریں  ·  JPG or PNG · tap to browse or drop a photo",
+    type=["jpg", "jpeg", "png"]
+)
+st.markdown('</div>', unsafe_allow_html=True)
 
 if uploaded_image and uploaded_image.file_id != st.session_state.get("last_image_id"):
     st.session_state["last_image_id"] = uploaded_image.file_id
