@@ -139,14 +139,48 @@ html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 
 .stApp {
     background:
+        radial-gradient(circle at 18% 12%, rgba(34,197,94,0.10), transparent 40%),
+        radial-gradient(circle at 88% 78%, rgba(34,197,94,0.08), transparent 42%),
+        radial-gradient(rgba(34,197,94,0.10) 1px, transparent 1px),
         linear-gradient(rgba(5,19,11,0.96), rgba(5,19,11,0.98)),
         repeating-linear-gradient(0deg, rgba(34,197,94,0.06) 0px, rgba(34,197,94,0.06) 1px, transparent 1px, transparent 40px),
         repeating-linear-gradient(90deg, rgba(34,197,94,0.06) 0px, rgba(34,197,94,0.06) 1px, transparent 1px, transparent 40px),
         #05130b;
+    background-size: auto, auto, 24px 24px, auto, auto, auto, auto;
     color: #eafff1;
+    position: relative;
 }
 
 #MainMenu, footer, header {visibility: hidden;}
+
+/* ---- decorative farm artwork, fixed behind all content ---- */
+.kv-bg-decor {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+.kv-bg-decor svg { position: absolute; }
+.kv-bg-decor .stalk-tr {
+    top: -30px; right: -50px; width: 380px; opacity: 0.14;
+    transform: rotate(10deg);
+}
+.kv-bg-decor .stalk-bl {
+    bottom: -60px; left: -70px; width: 340px; opacity: 0.10;
+    transform: rotate(-14deg) scaleX(-1);
+}
+.kv-bg-decor .leaf-mid {
+    top: 46%; right: 2%; width: 130px; opacity: 0.08;
+    transform: rotate(-8deg);
+}
+.kv-bg-decor .leaf-mid2 {
+    top: 18%; left: 1%; width: 90px; opacity: 0.07;
+    transform: rotate(20deg);
+}
+
+/* Make sure Streamlit's real content paints above the fixed decor layer */
+.stApp > div, [data-testid="stAppViewContainer"] { position: relative; z-index: 1; }
 
 .kv-navbar {
     display: flex; align-items: center; justify-content: space-between;
@@ -270,6 +304,58 @@ iframe {
 
 .kv-footnote { color: #7fa48c; font-size: 12.5px; text-align:center; margin-top: 10px; }
 </style>
+""", unsafe_allow_html=True)
+
+# ---------------- Decorative background artwork (original line-art, no external images) ----------------
+st.markdown("""
+<div class="kv-bg-decor">
+  <svg class="stalk-tr" viewBox="0 0 200 420" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="#22c55e" stroke-width="2.5" fill="none" stroke-linecap="round">
+      <path d="M100 415 C 97 300, 103 190, 100 55"/>
+      <path d="M100 320 C 60 300, 30 258, 20 208"/>
+      <path d="M100 298 C 140 278, 165 242, 176 198"/>
+      <path d="M100 248 C 64 233, 40 202, 30 166"/>
+      <path d="M100 228 C 136 213, 159 185, 169 150"/>
+      <path d="M100 55 L84 34"/>
+      <path d="M100 55 L116 34"/>
+      <path d="M100 76 L81 57"/>
+      <path d="M100 76 L119 57"/>
+      <path d="M100 97 L79 80"/>
+      <path d="M100 97 L121 80"/>
+      <path d="M100 118 L81 102"/>
+      <path d="M100 118 L119 102"/>
+      <path d="M100 139 L84 125"/>
+      <path d="M100 139 L116 125"/>
+    </g>
+  </svg>
+  <svg class="stalk-bl" viewBox="0 0 200 420" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="#22c55e" stroke-width="2.5" fill="none" stroke-linecap="round">
+      <path d="M100 415 C 97 300, 103 190, 100 55"/>
+      <path d="M100 320 C 60 300, 30 258, 20 208"/>
+      <path d="M100 298 C 140 278, 165 242, 176 198"/>
+      <path d="M100 248 C 64 233, 40 202, 30 166"/>
+      <path d="M100 228 C 136 213, 159 185, 169 150"/>
+      <path d="M100 55 L84 34"/>
+      <path d="M100 55 L116 34"/>
+      <path d="M100 76 L81 57"/>
+      <path d="M100 76 L119 57"/>
+      <path d="M100 97 L79 80"/>
+      <path d="M100 97 L121 80"/>
+      <path d="M100 118 L81 102"/>
+      <path d="M100 118 L119 102"/>
+      <path d="M100 139 L84 125"/>
+      <path d="M100 139 L116 125"/>
+    </g>
+  </svg>
+  <svg class="leaf-mid" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <path d="M50 95 C20 80, 10 40, 50 5 C90 40, 80 80, 50 95 Z" fill="none" stroke="#22c55e" stroke-width="2.5"/>
+    <path d="M50 88 L50 14" stroke="#22c55e" stroke-width="1.5"/>
+  </svg>
+  <svg class="leaf-mid2" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <path d="M50 95 C20 80, 10 40, 50 5 C90 40, 80 80, 50 95 Z" fill="none" stroke="#22c55e" stroke-width="2.5"/>
+    <path d="M50 88 L50 14" stroke="#22c55e" stroke-width="1.5"/>
+  </svg>
+</div>
 """, unsafe_allow_html=True)
 
 # ---------------- Navbar ----------------
