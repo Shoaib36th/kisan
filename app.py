@@ -17,7 +17,7 @@ import torch
 # ============================================================
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "your_groq_api_key_here")
-N8N_WEBHOOK_URL = "https://shoaib15.app.n8n.cloud/webhook/kisan-query"
+N8N_WEBHOOK_URL = "https://shoaib15.app.n8n.cloud/webhook-test/kisan-query"
 
 client = Groq(api_key=GROQ_API_KEY)
 
@@ -134,61 +134,61 @@ CROPS = {
     "Rice (چاول)": {"base_yield": 110},
 }
 
-GROWTH_STAGES = ["🌰 Seed", "🌱 Sprout", "🌿 Growing", "🌾 Maturing", "🏆 Harvest"]
+GROWTH_STAGES = ["🌰 بیج", "🌱 انکھوا", "🌿 نشوونما", "🌾 پکاؤ", "🏆 کٹائی"]
 
 ROUNDS = [
     {
-        "title": "🌰 Round 1: Planting",
-        "question": "Time to plant. How much water do you use to prep the soil?",
+        "title": "🌰 راؤنڈ 1: بوائی",
+        "question": "بونے کا وقت ہے۔ زمین تیار کرنے کے لیے آپ کتنا پانی استعمال کریں گے؟",
         "choices": {
-            "Water generously": {"yield_change": 8, "water_cost": 20, "money_cost": 5},
-            "Use minimal water": {"yield_change": -3, "water_cost": 5, "money_cost": 0},
-            "Ask the Advisor first": "ask_weather",
+            "زیادہ پانی دیں": {"yield_change": 8, "water_cost": 20, "money_cost": 5},
+            "کم پانی استعمال کریں": {"yield_change": -3, "water_cost": 5, "money_cost": 0},
+            "پہلے ایڈوائزر سے پوچھیں": "ask_weather",
         },
     },
     {
-        "title": "🌱 Round 2: Irrigation Decision",
-        "question": "It hasn't rained in a week. What do you do?",
+        "title": "🌱 راؤنڈ 2: آبپاشی کا فیصلہ",
+        "question": "ایک ہفتے سے بارش نہیں ہوئی۔ آپ کیا کریں گے؟",
         "choices": {
-            "Irrigate now": {"yield_change": 10, "water_cost": 15, "money_cost": 5},
-            "Wait 2 more days": {"yield_change": -5, "water_cost": 0, "money_cost": 0},
-            "Ask the Advisor first": "ask_weather",
+            "ابھی پانی دیں": {"yield_change": 10, "water_cost": 15, "money_cost": 5},
+            "مزید 2 دن انتظار کریں": {"yield_change": -5, "water_cost": 0, "money_cost": 0},
+            "پہلے ایڈوائزر سے پوچھیں": "ask_weather",
         },
     },
     {
-        "title": "🌿 Round 3: Fertilizer Decision",
-        "question": "Your crop looks a bit pale. What do you do?",
+        "title": "🌿 راؤنڈ 3: کھاد کا فیصلہ",
+        "question": "آپ کی فصل تھوڑی مرجھائی ہوئی لگ رہی ہے۔ آپ کیا کریں گے؟",
         "choices": {
-            "Apply fertilizer now": {"yield_change": 15, "water_cost": 5, "money_cost": 10},
-            "Skip it this season": {"yield_change": -10, "water_cost": 0, "money_cost": 0},
-            "Ask the Advisor first": "ask_fertilizer",
+            "ابھی کھاد ڈالیں": {"yield_change": 15, "water_cost": 5, "money_cost": 10},
+            "اس سیزن میں کھاد نہ ڈالیں": {"yield_change": -10, "water_cost": 0, "money_cost": 0},
+            "پہلے ایڈوائزر سے پوچھیں": "ask_fertilizer",
         },
     },
     {
-        "title": "🐛 Round 4: Pest Attack!",
-        "question": "You spot pests on a few leaves. What do you do?",
+        "title": "🐛 راؤنڈ 4: کیڑوں کا حملہ!",
+        "question": "آپ کو چند پتوں پر کیڑے نظر آتے ہیں۔ آپ کیا کریں گے؟",
         "choices": {
-            "Spray pesticide immediately": {"yield_change": 12, "water_cost": 0, "money_cost": 15},
-            "Ignore it, hope it's minor": {"yield_change": -15, "water_cost": 0, "money_cost": 0},
-            "Ask the Advisor first": "ask_disease",
+            "فوراً کیڑے مار دوا چھڑکیں": {"yield_change": 12, "water_cost": 0, "money_cost": 15},
+            "نظر انداز کریں، شاید معمولی ہو": {"yield_change": -15, "water_cost": 0, "money_cost": 0},
+            "پہلے ایڈوائزر سے پوچھیں": "ask_disease",
         },
     },
     {
-        "title": "🌾 Round 5: Weather Surprise",
-        "question": "An unexpected heatwave is coming. What do you do?",
+        "title": "🌾 راؤنڈ 5: موسم کی حیرانی",
+        "question": "ایک غیر متوقع گرمی کی لہر آ رہی ہے۔ آپ کیا کریں گے؟",
         "choices": {
-            "Irrigate extra to protect crop": {"yield_change": 10, "water_cost": 20, "money_cost": 5},
-            "Do nothing, save resources": {"yield_change": -8, "water_cost": 0, "money_cost": 0},
-            "Ask the Advisor first": "ask_weather",
+            "فصل بچانے کے لیے اضافی پانی دیں": {"yield_change": 10, "water_cost": 20, "money_cost": 5},
+            "کچھ نہ کریں، وسائل بچائیں": {"yield_change": -8, "water_cost": 0, "money_cost": 0},
+            "پہلے ایڈوائزر سے پوچھیں": "ask_weather",
         },
     },
     {
-        "title": "💰 Round 6: Harvest & Selling",
-        "question": "Harvest is ready. Market prices are fluctuating. What do you do?",
+        "title": "💰 راؤنڈ 6: کٹائی اور فروخت",
+        "question": "فصل تیار ہے۔ مارکیٹ کی قیمتیں اتار چڑھاؤ کا شکار ہیں۔ آپ کیا کریں گے؟",
         "choices": {
-            "Sell immediately": {"yield_change": 0, "water_cost": 0, "money_cost": 0},
-            "Wait for a better price": {"yield_change": 5, "water_cost": 0, "money_cost": 0},
-            "Ask the Advisor first": "ask_price",
+            "فوراً بیچ دیں": {"yield_change": 0, "water_cost": 0, "money_cost": 0},
+            "بہتر قیمت کا انتظار کریں": {"yield_change": 5, "water_cost": 0, "money_cost": 0},
+            "پہلے ایڈوائزر سے پوچھیں": "ask_price",
         },
     },
 ]
