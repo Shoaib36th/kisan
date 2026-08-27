@@ -16,7 +16,7 @@ import torch
 # ============================================================
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "your_groq_api_key_here")
-N8N_WEBHOOK_URL = "https://shoaib15.app.n8n.cloud/webhook/kisan-query"
+N8N_WEBHOOK_URL = "https://shoaib15.app.n8n.cloud/webhook-test/kisan-query"
 
 client = Groq(api_key=GROQ_API_KEY)
 
@@ -128,36 +128,65 @@ def text_to_speech_neural(text, voice="ur-PK-AsadNeural"):
 # ============================================================
 
 CROPS = {
-    "Wheat (گندم)": {"base_yield": 100, "water_need": "medium"},
-    "Cotton (کپاس)": {"base_yield": 90, "water_need": "high"},
-    "Rice (چاول)": {"base_yield": 110, "water_need": "high"},
+    "Wheat (گندم)": {"base_yield": 100},
+    "Cotton (کپاس)": {"base_yield": 90},
+    "Rice (چاول)": {"base_yield": 110},
 }
+
+GROWTH_STAGES = ["🌰 Seed", "🌱 Sprout", "🌿 Growing", "🌾 Maturing", "🏆 Harvest"]
 
 ROUNDS = [
     {
-        "title": "🌱 Round 1: Irrigation Decision",
-        "question": "It hasn't rained in a week. What do you do?",
+        "title": "🌰 Round 1: Planting",
+        "question": "Time to plant. How much water do you use to prep the soil?",
         "choices": {
-            "Irrigate now": {"yield_change": 10, "water_cost": 15},
-            "Wait 2 more days": {"yield_change": -5, "water_cost": 0},
+            "Water generously": {"yield_change": 8, "water_cost": 20, "money_cost": 5},
+            "Use minimal water": {"yield_change": -3, "water_cost": 5, "money_cost": 0},
             "Ask the Advisor first": "ask_weather",
         },
     },
     {
-        "title": "🌾 Round 2: Fertilizer Decision",
+        "title": "🌱 Round 2: Irrigation Decision",
+        "question": "It hasn't rained in a week. What do you do?",
+        "choices": {
+            "Irrigate now": {"yield_change": 10, "water_cost": 15, "money_cost": 5},
+            "Wait 2 more days": {"yield_change": -5, "water_cost": 0, "money_cost": 0},
+            "Ask the Advisor first": "ask_weather",
+        },
+    },
+    {
+        "title": "🌿 Round 3: Fertilizer Decision",
         "question": "Your crop looks a bit pale. What do you do?",
         "choices": {
-            "Apply fertilizer now": {"yield_change": 15, "water_cost": 5},
-            "Skip it this season": {"yield_change": -10, "water_cost": 0},
+            "Apply fertilizer now": {"yield_change": 15, "water_cost": 5, "money_cost": 10},
+            "Skip it this season": {"yield_change": -10, "water_cost": 0, "money_cost": 0},
             "Ask the Advisor first": "ask_fertilizer",
         },
     },
     {
-        "title": "💰 Round 3: Selling Decision",
+        "title": "🐛 Round 4: Pest Attack!",
+        "question": "You spot pests on a few leaves. What do you do?",
+        "choices": {
+            "Spray pesticide immediately": {"yield_change": 12, "water_cost": 0, "money_cost": 15},
+            "Ignore it, hope it's minor": {"yield_change": -15, "water_cost": 0, "money_cost": 0},
+            "Ask the Advisor first": "ask_disease",
+        },
+    },
+    {
+        "title": "🌾 Round 5: Weather Surprise",
+        "question": "An unexpected heatwave is coming. What do you do?",
+        "choices": {
+            "Irrigate extra to protect crop": {"yield_change": 10, "water_cost": 20, "money_cost": 5},
+            "Do nothing, save resources": {"yield_change": -8, "water_cost": 0, "money_cost": 0},
+            "Ask the Advisor first": "ask_weather",
+        },
+    },
+    {
+        "title": "💰 Round 6: Harvest & Selling",
         "question": "Harvest is ready. Market prices are fluctuating. What do you do?",
         "choices": {
-            "Sell immediately": {"yield_change": 0, "water_cost": 0},
-            "Wait for a better price": {"yield_change": 5, "water_cost": 0},
+            "Sell immediately": {"yield_change": 0, "water_cost": 0, "money_cost": 0},
+            "Wait for a better price": {"yield_change": 5, "water_cost": 0, "money_cost": 0},
             "Ask the Advisor first": "ask_price",
         },
     },
@@ -166,85 +195,96 @@ ROUNDS = [
 ADVISOR_QUERIES = {
     "ask_weather": "Kya mujhe abhi apni fasal ko pani dena chahiye?",
     "ask_fertilizer": "Meri fasal thori si peeli lag rahi hai, kya mujhe khaad dalni chahiye?",
+    "ask_disease": "Meri fasal par keere lag gaye hain, mujhe kya karna chahiye?",
     "ask_price": "Kya mujhe abhi apni fasal bechni chahiye ya rukna chahiye?",
 }
 
 
 def init_game_state():
     if "game_round" not in st.session_state:
-        st.session_state.game_round = 0
-        st.session_state.game_yield = 100
-        st.session_state.game_crop = None
-        st.session_state.game_log = []
-        st.session_state.game_over = False
+        reset_game()
 
 
 def reset_game():
     st.session_state.game_round = 0
     st.session_state.game_yield = 100
+    st.session_state.game_water = 100
+    st.session_state.game_money = 100
     st.session_state.game_crop = None
     st.session_state.game_log = []
     st.session_state.game_over = False
 
 
 def run_farm_simulator():
-    """Simple, rule-based decision simulator. No extra AI calls unless the
-    farmer explicitly taps 'Ask the Advisor first', which reuses the existing
-    get_agent_reply() function already used by the main advisor above."""
+    """Rule-based decision simulator with resource meters and growth stages.
+    No extra AI calls unless the farmer taps 'Ask the Advisor first', which
+    reuses the existing get_agent_reply() function already used above."""
+    import time
 
     init_game_state()
 
+    st.markdown('<div class="sim-card">', unsafe_allow_html=True)
     st.subheader("🎮 Farm Simulator")
-    st.write("Make a few farming decisions across 3 rounds and see how your harvest turns out. You can ask your AI Advisor for help at any decision point!")
+    st.write("Grow your crop through 6 rounds of real farming decisions. Manage your water and money wisely — and ask your AI Advisor for help anytime!")
 
-    # ---- Crop selection (only before game starts) ----
     if st.session_state.game_crop is None:
         crop_choice = st.selectbox("Choose your crop to begin:", list(CROPS.keys()))
-        if st.button("Start Farming 🌾"):
+        if st.button("Start Farming 🌾", use_container_width=True):
             st.session_state.game_crop = crop_choice
             st.session_state.game_yield = CROPS[crop_choice]["base_yield"]
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    st.write(f"**Crop:** {st.session_state.game_crop}  |  **Current Yield Score:** {st.session_state.game_yield}")
-    st.progress(min(st.session_state.game_yield, 150) / 150)
+    stage_idx = min(st.session_state.game_round, len(GROWTH_STAGES) - 1)
+    st.markdown(f"### {GROWTH_STAGES[stage_idx]}  —  {st.session_state.game_crop}")
 
-    # ---- Game over screen ----
+    c1, c2, c3 = st.columns(3)
+    c1.metric("🌾 Yield", st.session_state.game_yield)
+    c2.metric("💧 Water", f"{max(st.session_state.game_water, 0)}%")
+    c3.metric("💰 Money", f"Rs {max(st.session_state.game_money, 0)}")
+
+    st.progress(min(max(st.session_state.game_yield, 0), 150) / 150)
+
     if st.session_state.game_over:
         final_yield = st.session_state.game_yield
-        if final_yield >= 130:
+        if final_yield >= 140:
+            st.balloons()
             st.success(f"🏆 Excellent farming! Final yield score: {final_yield}")
         elif final_yield >= 100:
             st.info(f"👍 Decent harvest. Final yield score: {final_yield}")
         else:
             st.warning(f"⚠️ Tough season. Final yield score: {final_yield}")
 
-        st.write("**Your decisions:**")
+        st.write("**Your farming journey:**")
         for entry in st.session_state.game_log:
             st.write(f"- {entry}")
 
-        if st.button("🔄 Play Again"):
+        if st.button("🔄 Play Again", use_container_width=True):
             reset_game()
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    # ---- Active round ----
     round_data = ROUNDS[st.session_state.game_round]
-    st.markdown(f"### {round_data['title']}")
+    st.markdown(f"#### {round_data['title']}")
     st.write(round_data["question"])
 
     cols = st.columns(len(round_data["choices"]))
     for idx, (choice_label, effect) in enumerate(round_data["choices"].items()):
         with cols[idx]:
-            if st.button(choice_label, key=f"round{st.session_state.game_round}_{idx}"):
+            if st.button(choice_label, key=f"round{st.session_state.game_round}_{idx}", use_container_width=True):
                 if isinstance(effect, str):
-                    # "Ask the Advisor first" path — reuses the real agent backend
-                    with st.spinner("Asking your advisor..."):
+                    with st.spinner("🌾 Asking your advisor..."):
                         advice = get_agent_reply(ADVISOR_QUERIES[effect])
                     st.info(f"**Advisor says:** {advice}")
                     st.caption("Now pick a real decision based on this advice ⬆️")
                 else:
+                    with st.spinner("🌱 Growing..."):
+                        time.sleep(0.6)
                     st.session_state.game_yield += effect["yield_change"]
+                    st.session_state.game_water -= effect["water_cost"]
+                    st.session_state.game_money -= effect["money_cost"]
                     st.session_state.game_log.append(
                         f"{round_data['title']}: chose '{choice_label}' ({'+' if effect['yield_change'] >= 0 else ''}{effect['yield_change']} yield)"
                     )
@@ -253,12 +293,50 @@ def run_farm_simulator():
                         st.session_state.game_over = True
                     st.rerun()
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ============================================================
 # STREAMLIT UI
 # ============================================================
 
+CUSTOM_CSS = """
+<style>
+.stApp {
+    background: radial-gradient(circle at 20% 20%, #0d2b1a 0%, #071a10 60%, #05130b 100%);
+    color: #e8f5e9;
+}
+h1, h2, h3, h4 {
+    color: #f2d675 !important;
+}
+.stButton>button {
+    background: linear-gradient(135deg, #1f6b3a, #143d22);
+    color: #eaffea;
+    border: 1px solid #3fae5c;
+    border-radius: 10px;
+    padding: 0.5em 1em;
+    transition: all 0.2s ease-in-out;
+}
+.stButton>button:hover {
+    background: linear-gradient(135deg, #2c8a4d, #1c5c30);
+    border-color: #67d98a;
+    transform: translateY(-2px);
+}
+.sim-card {
+    background: rgba(15, 40, 25, 0.55);
+    border: 1px solid rgba(76, 175, 80, 0.35);
+    border-radius: 16px;
+    padding: 1.2em;
+    margin-top: 0.5em;
+}
+[data-testid="stMetricValue"] {
+    color: #7be495 !important;
+}
+</style>
+"""
+
 st.set_page_config(page_title="Kisan Voice Advisor", page_icon="🌾")
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 st.title("🌾 Kisan Voice Advisor")
 
 tab_advisor, tab_game = st.tabs(["🎙️ Voice Advisor", "🎮 Farm Simulator"])
