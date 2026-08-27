@@ -17,7 +17,7 @@ import torch
 # ============================================================
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "your_groq_api_key_here")
-N8N_WEBHOOK_URL = "https://shoaib15.app.n8n.cloud/webhook-test/kisan-query"
+N8N_WEBHOOK_URL = "https://shoaib15.app.n8n.cloud/webhook/kisan-query"
 
 client = Groq(api_key=GROQ_API_KEY)
 
