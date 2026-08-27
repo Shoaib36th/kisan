@@ -4,6 +4,7 @@ import tempfile
 import asyncio
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from groq import Groq
 import edge_tts
 from streamlit_mic_recorder import mic_recorder
@@ -326,8 +327,9 @@ h1, h2, h3, h4 {
     box-shadow: 0 4px 14px rgba(76, 175, 80, 0.35);
 }
 
-/* ---- Simulator card ---- */
-.sim-card {
+/* ---- Simulator card (also reused by the Voice Advisor cards below,
+        so the whole app shares one consistent card look) ---- */
+.sim-card, .kv-card {
     background: rgba(15, 40, 25, 0.55);
     border: 1px solid rgba(76, 175, 80, 0.35);
     border-radius: 16px;
@@ -335,6 +337,46 @@ h1, h2, h3, h4 {
     margin-top: 0.5em;
     animation: fadeIn 0.5s ease-in-out;
 }
+
+/* ---- Navbar ---- */
+.kv-navbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 4px 18px 4px; border-bottom: 1px solid rgba(76, 175, 80, 0.25);
+    margin-bottom: 10px;
+}
+.kv-brand { display: flex; align-items: center; gap: 12px; }
+.kv-logo { font-size: 26px; filter: drop-shadow(0 0 10px rgba(76, 175, 80, 0.8)); }
+.kv-brand-text .kv-title-en { font-weight: 800; font-size: 19px; color: #f2d675; line-height: 1.1; }
+.kv-brand-text .kv-title-ur { color: #9fd8ac; font-size: 15px; }
+.kv-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(76, 175, 80, 0.12); border: 1px solid rgba(76, 175, 80, 0.45);
+    color: #7be495; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 600;
+}
+
+/* ---- Hero ---- */
+.kv-hero { text-align: center; padding: 6px 0 26px 0; }
+.kv-hero-icon { font-size: 42px; filter: drop-shadow(0 0 16px rgba(76, 175, 80, 0.9)); margin-bottom: 4px; }
+.kv-hero-ur { font-size: 24px; color: #f2d675; text-shadow: 0 0 14px rgba(242, 214, 117, 0.35); margin: 6px 0 12px 0; }
+.kv-hero h1 { font-size: 36px; font-weight: 800; line-height: 1.18; margin: 0; color: #eaffea; }
+.kv-hero h1 .grad {
+    background: linear-gradient(90deg, #3fae5c, #f2d675);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.kv-hero p { color: #b7d9c0; font-size: 15px; margin-top: 12px; max-width: 460px; margin-left:auto; margin-right:auto; }
+
+/* ---- Section labels / captions / chips inside the advisor cards ---- */
+.kv-section-label { font-size: 19px; color: #eaffea; margin-bottom: 2px; }
+.kv-section-label-en { font-size: 11px; letter-spacing: 2px; color: #7be495; text-transform: uppercase; margin-bottom: 12px; margin-top: 2px; font-weight: 600; }
+.kv-mic-caption-ur { color: #7be495; font-size: 17px; margin-top: 12px; }
+.kv-mic-caption-en { color: #9fd8ac; font-size: 13px; margin-top: 2px; }
+.kv-chips { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+.kv-chip {
+    border: 1px solid rgba(76, 175, 80, 0.3); background: rgba(76, 175, 80, 0.08);
+    color: #dff7e6; padding: 8px 16px; border-radius: 999px; font-size: 14px;
+}
+.kv-divider { text-align:center; color:#5c8a6b; margin: 18px 0 22px 0; font-size: 12px; letter-spacing:3px; text-transform:uppercase; }
+
 [data-testid="stMetricValue"] {
     color: #7be495 !important;
 }
@@ -360,6 +402,24 @@ h1, h2, h3, h4 {
 [data-testid="stFileUploaderDropzone"] small,
 [data-testid="stFileUploaderDropzone"] div {
     color: #cfe9d6 !important;
+}
+/* the little uploaded-file chip (name + size) that appears after picking a photo */
+[data-testid="stFileUploaderFile"],
+[data-testid="stFileUploaderFile"] *,
+[class*="fileUploaderFile"],
+[class*="fileUploaderFile"] * {
+    background: transparent !important;
+    color: #eaffea !important;
+}
+[data-testid="stFileUploaderFile"] {
+    background: rgba(15, 40, 25, 0.75) !important;
+    border: 1px solid rgba(76, 175, 80, 0.35) !important;
+    border-radius: 10px !important;
+}
+[data-testid="stFileUploaderFile"] svg,
+[class*="fileUploaderFile"] svg {
+    fill: #7be495 !important;
+    stroke: #7be495 !important;
 }
 
 /* ---- Mic recorder wrapper (partial styling — it's an embedded iframe) ---- */
@@ -506,12 +566,37 @@ if "welcomed" not in st.session_state:
     time.sleep(3.0)
     welcome_placeholder.empty()
 
-st.title("🌾 Kisan Voice Advisor")
+# ---------------- Navbar ----------------
+st.markdown("""
+<div class="kv-navbar">
+    <div class="kv-brand">
+        <div class="kv-logo">🌾</div>
+        <div class="kv-brand-text">
+            <div class="kv-title-en">Kisan Voice Advisor</div>
+            <div class="kv-title-ur">کسان وائس ایڈوائزر</div>
+        </div>
+    </div>
+    <div class="kv-badge">🔊 Urdu Voice AI</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ---------------- Hero ----------------
+st.markdown("""
+<div class="kv-hero">
+    <div class="kv-hero-icon">🌾</div>
+    <div class="kv-hero-ur">اپنی زبان میں سوال پوچھیں</div>
+    <h1>Your farm, <span class="grad">heard &amp; answered</span></h1>
+    <p>Speak your farming question in Urdu and listen to instant expert advice —
+    or scan a sick leaf and get a treatment plan in seconds.</p>
+</div>
+""", unsafe_allow_html=True)
 
 tab_advisor, tab_game = st.tabs(["🎙️ Voice Advisor", "🎮 Farm Simulator"])
 
 with tab_advisor:
-    st.write("Click the mic button, ask your farming question in Urdu, and listen to the reply.")
+    st.markdown('<div class="kv-card">', unsafe_allow_html=True)
+    st.markdown('<div class="kv-section-label">آواز سے پوچھیں</div>', unsafe_allow_html=True)
+    st.markdown('<div class="kv-section-label-en">Ask by voice</div>', unsafe_allow_html=True)
 
     # ---------------- Voice Q&A ----------------
     st.markdown('<div class="mic-wrapper">', unsafe_allow_html=True)
@@ -520,6 +605,67 @@ with tab_advisor:
         stop_prompt="⏹ Stop recording",
         key="recorder"
     )
+    st.markdown("""
+        <div class="kv-mic-caption-ur">مائیک دبائیں اور سوال پوچھیں</div>
+        <div class="kv-mic-caption-en">Tap the mic and ask your farming question in Urdu</div>
+    """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # The mic button is rendered by streamlit_mic_recorder inside its own sandboxed
+    # iframe, so page-level CSS above can't reach it. This invisible helper reaches
+    # up to the parent page, finds that iframe (same-origin), and injects a
+    # stylesheet mirroring the exact colors/transition already used by
+    # .stButton>button, so the mic button matches the rest of the theme.
+    # Re-applied on an interval since Streamlit can redraw the component on rerun.
+    components.html("""
+    <script>
+    function kvStyleMicRecorder() {
+        try {
+            const doc = window.parent.document;
+            const frames = doc.querySelectorAll('iframe');
+            frames.forEach(f => {
+                const title = (f.title || "").toLowerCase();
+                if (title.includes("mic_recorder")) {
+                    const idoc = f.contentDocument || (f.contentWindow && f.contentWindow.document);
+                    if (idoc && idoc.head && !idoc.getElementById('kv-mic-style')) {
+                        const style = idoc.createElement('style');
+                        style.id = 'kv-mic-style';
+                        style.innerHTML = `
+                            body { background: transparent !important; }
+                            .myButton {
+                                background: linear-gradient(135deg, #1f6b3a, #143d22) !important;
+                                border: 1px solid #3fae5c !important;
+                                color: #eaffea !important;
+                                border-radius: 10px !important;
+                                padding: 10px 22px !important;
+                                font-weight: 600 !important;
+                                font-size: 14px !important;
+                                transition: all 0.25s ease-in-out;
+                            }
+                            .myButton:hover {
+                                background: linear-gradient(135deg, #2c8a4d, #1c5c30) !important;
+                                border-color: #67d98a !important;
+                                box-shadow: 0 4px 14px rgba(76, 175, 80, 0.35) !important;
+                            }
+                        `;
+                        idoc.head.appendChild(style);
+                    }
+                }
+            });
+        } catch (e) { /* cross-origin fallback: silently skip */ }
+    }
+    kvStyleMicRecorder();
+    setInterval(kvStyleMicRecorder, 700);
+    </script>
+    """, height=0)
+
+    st.markdown("""
+    <div class="kv-chips">
+        <div class="kv-chip">میرے گندم کے پتوں پر پیلے دھبے ہیں، کیا کروں؟</div>
+        <div class="kv-chip">کپاس کو کتنا پانی دوں؟</div>
+        <div class="kv-chip">گندم کے لیے کون سی کھاد بہتر ہے؟</div>
+    </div>
+    """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     if audio and audio.get("id") != st.session_state.get("last_audio_id"):
@@ -547,11 +693,17 @@ with tab_advisor:
         else:
             st.warning("Audio was unclear. Please try recording again, speaking clearly.")
 
-    st.divider()
+    st.markdown('<div class="kv-divider">— or —</div>', unsafe_allow_html=True)
 
     # ---------------- Crop Disease Photo Upload ----------------
-    st.subheader("📷 Or upload a photo of a sick crop")
-    uploaded_image = st.file_uploader("Upload a leaf photo", type=["jpg", "jpeg", "png"])
+    st.markdown('<div class="kv-card">', unsafe_allow_html=True)
+    st.markdown('<div class="kv-section-label">📷 فصل کی تصویر سکین کریں</div>', unsafe_allow_html=True)
+    st.markdown('<div class="kv-section-label-en">Scan a sick crop</div>', unsafe_allow_html=True)
+    uploaded_image = st.file_uploader(
+        "پتے کی تصویر یہاں ڈالیں یا منتخب کریں  ·  JPG or PNG · tap to browse or drop a photo",
+        type=["jpg", "jpeg", "png"]
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if uploaded_image and uploaded_image.file_id != st.session_state.get("last_image_id"):
         st.session_state["last_image_id"] = uploaded_image.file_id
