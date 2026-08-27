@@ -4,7 +4,6 @@ import tempfile
 import asyncio
 import requests
 import streamlit as st
-import streamlit.components.v1 as components
 from groq import Groq
 import edge_tts
 from streamlit_mic_recorder import mic_recorder
@@ -17,7 +16,8 @@ import torch
 # ============================================================
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "your_groq_api_key_here")
-N8N_WEBHOOK_URL = "https://shoaib15.app.n8n.cloud/webhook/kisan-query"
+N8N_WEBHOOK_URL = "https://shoaib15.app.n8n.cloud/webhook-test/kisan-query"
+
 client = Groq(api_key=GROQ_API_KEY)
 
 DISEASE_MODEL_NAME = "linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"
@@ -124,398 +124,168 @@ def text_to_speech_neural(text, voice="ur-PK-AsadNeural"):
 
 
 # ============================================================
+# FARM SIMULATOR (isolated game logic — does not touch the advisor above)
+# ============================================================
+
+CROPS = {
+    "Wheat (گندم)": {"base_yield": 100, "water_need": "medium"},
+    "Cotton (کپاس)": {"base_yield": 90, "water_need": "high"},
+    "Rice (چاول)": {"base_yield": 110, "water_need": "high"},
+}
+
+ROUNDS = [
+    {
+        "title": "🌱 Round 1: Irrigation Decision",
+        "question": "It hasn't rained in a week. What do you do?",
+        "choices": {
+            "Irrigate now": {"yield_change": 10, "water_cost": 15},
+            "Wait 2 more days": {"yield_change": -5, "water_cost": 0},
+            "Ask the Advisor first": "ask_weather",
+        },
+    },
+    {
+        "title": "🌾 Round 2: Fertilizer Decision",
+        "question": "Your crop looks a bit pale. What do you do?",
+        "choices": {
+            "Apply fertilizer now": {"yield_change": 15, "water_cost": 5},
+            "Skip it this season": {"yield_change": -10, "water_cost": 0},
+            "Ask the Advisor first": "ask_fertilizer",
+        },
+    },
+    {
+        "title": "💰 Round 3: Selling Decision",
+        "question": "Harvest is ready. Market prices are fluctuating. What do you do?",
+        "choices": {
+            "Sell immediately": {"yield_change": 0, "water_cost": 0},
+            "Wait for a better price": {"yield_change": 5, "water_cost": 0},
+            "Ask the Advisor first": "ask_price",
+        },
+    },
+]
+
+ADVISOR_QUERIES = {
+    "ask_weather": "Kya mujhe abhi apni fasal ko pani dena chahiye?",
+    "ask_fertilizer": "Meri fasal thori si peeli lag rahi hai, kya mujhe khaad dalni chahiye?",
+    "ask_price": "Kya mujhe abhi apni fasal bechni chahiye ya rukna chahiye?",
+}
+
+
+def init_game_state():
+    if "game_round" not in st.session_state:
+        st.session_state.game_round = 0
+        st.session_state.game_yield = 100
+        st.session_state.game_crop = None
+        st.session_state.game_log = []
+        st.session_state.game_over = False
+
+
+def reset_game():
+    st.session_state.game_round = 0
+    st.session_state.game_yield = 100
+    st.session_state.game_crop = None
+    st.session_state.game_log = []
+    st.session_state.game_over = False
+
+
+def run_farm_simulator():
+    """Simple, rule-based decision simulator. No extra AI calls unless the
+    farmer explicitly taps 'Ask the Advisor first', which reuses the existing
+    get_agent_reply() function already used by the main advisor above."""
+
+    init_game_state()
+
+    st.subheader("🎮 Farm Simulator")
+    st.write("Make a few farming decisions across 3 rounds and see how your harvest turns out. You can ask your AI Advisor for help at any decision point!")
+
+    # ---- Crop selection (only before game starts) ----
+    if st.session_state.game_crop is None:
+        crop_choice = st.selectbox("Choose your crop to begin:", list(CROPS.keys()))
+        if st.button("Start Farming 🌾"):
+            st.session_state.game_crop = crop_choice
+            st.session_state.game_yield = CROPS[crop_choice]["base_yield"]
+            st.rerun()
+        return
+
+    st.write(f"**Crop:** {st.session_state.game_crop}  |  **Current Yield Score:** {st.session_state.game_yield}")
+    st.progress(min(st.session_state.game_yield, 150) / 150)
+
+    # ---- Game over screen ----
+    if st.session_state.game_over:
+        final_yield = st.session_state.game_yield
+        if final_yield >= 130:
+            st.success(f"🏆 Excellent farming! Final yield score: {final_yield}")
+        elif final_yield >= 100:
+            st.info(f"👍 Decent harvest. Final yield score: {final_yield}")
+        else:
+            st.warning(f"⚠️ Tough season. Final yield score: {final_yield}")
+
+        st.write("**Your decisions:**")
+        for entry in st.session_state.game_log:
+            st.write(f"- {entry}")
+
+        if st.button("🔄 Play Again"):
+            reset_game()
+            st.rerun()
+        return
+
+    # ---- Active round ----
+    round_data = ROUNDS[st.session_state.game_round]
+    st.markdown(f"### {round_data['title']}")
+    st.write(round_data["question"])
+
+    cols = st.columns(len(round_data["choices"]))
+    for idx, (choice_label, effect) in enumerate(round_data["choices"].items()):
+        with cols[idx]:
+            if st.button(choice_label, key=f"round{st.session_state.game_round}_{idx}"):
+                if isinstance(effect, str):
+                    # "Ask the Advisor first" path — reuses the real agent backend
+                    with st.spinner("Asking your advisor..."):
+                        advice = get_agent_reply(ADVISOR_QUERIES[effect])
+                    st.info(f"**Advisor says:** {advice}")
+                    st.caption("Now pick a real decision based on this advice ⬆️")
+                else:
+                    st.session_state.game_yield += effect["yield_change"]
+                    st.session_state.game_log.append(
+                        f"{round_data['title']}: chose '{choice_label}' ({'+' if effect['yield_change'] >= 0 else ''}{effect['yield_change']} yield)"
+                    )
+                    st.session_state.game_round += 1
+                    if st.session_state.game_round >= len(ROUNDS):
+                        st.session_state.game_over = True
+                    st.rerun()
+
+
+# ============================================================
 # STREAMLIT UI
 # ============================================================
 
-st.set_page_config(page_title="Kisan Voice Advisor", page_icon="🌾", layout="centered")
+st.set_page_config(page_title="Kisan Voice Advisor", page_icon="🌾")
+st.title("🌾 Kisan Voice Advisor")
 
-# ---------------- Global theme / CSS ----------------
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@600;700&family=Poppins:wght@400;600;700;800&display=swap');
+tab_advisor, tab_game = st.tabs(["🎙️ Voice Advisor", "🎮 Farm Simulator"])
 
-html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
+with tab_advisor:
+    st.write("Click the mic button, ask your farming question in Urdu, and listen to the reply.")
 
-.stApp {
-    background:
-        radial-gradient(circle at 18% 12%, rgba(34,197,94,0.10), transparent 40%),
-        radial-gradient(circle at 88% 78%, rgba(34,197,94,0.08), transparent 42%),
-        radial-gradient(rgba(34,197,94,0.10) 1px, transparent 1px),
-        linear-gradient(rgba(5,19,11,0.96), rgba(5,19,11,0.98)),
-        repeating-linear-gradient(0deg, rgba(34,197,94,0.06) 0px, rgba(34,197,94,0.06) 1px, transparent 1px, transparent 40px),
-        repeating-linear-gradient(90deg, rgba(34,197,94,0.06) 0px, rgba(34,197,94,0.06) 1px, transparent 1px, transparent 40px),
-        #05130b;
-    background-size: auto, auto, 24px 24px, auto, auto, auto, auto;
-    color: #eafff1;
-    position: relative;
-}
+    # ---------------- Voice Q&A ----------------
+    audio = mic_recorder(
+        start_prompt="🎤 Speak your question",
+        stop_prompt="⏹ Stop recording",
+        key="recorder"
+    )
 
-#MainMenu, footer, header {visibility: hidden;}
+    if audio and audio.get("id") != st.session_state.get("last_audio_id"):
+        st.session_state["last_audio_id"] = audio["id"]
 
-/* ---- decorative farm artwork, fixed behind all content ---- */
-.kv-bg-decor {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-}
-.kv-bg-decor svg { position: absolute; }
-.kv-bg-decor .stalk-tr {
-    top: -30px; right: -50px; width: 380px; opacity: 0.14;
-    transform: rotate(10deg);
-}
-.kv-bg-decor .stalk-bl {
-    bottom: -60px; left: -70px; width: 340px; opacity: 0.10;
-    transform: rotate(-14deg) scaleX(-1);
-}
-.kv-bg-decor .leaf-mid {
-    top: 46%; right: 2%; width: 130px; opacity: 0.08;
-    transform: rotate(-8deg);
-}
-.kv-bg-decor .leaf-mid2 {
-    top: 18%; left: 1%; width: 90px; opacity: 0.07;
-    transform: rotate(20deg);
-}
+        st.audio(audio["bytes"])
 
-/* Make sure Streamlit's real content paints above the fixed decor layer */
-.stApp > div, [data-testid="stAppViewContainer"] { position: relative; z-index: 1; }
+        with st.spinner("Listening..."):
+            query_text = transcribe_audio_groq(audio["bytes"])
 
-.kv-navbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 6px 4px 22px 4px; border-bottom: 1px solid rgba(34,197,94,0.15);
-    margin-bottom: 28px;
-}
-.kv-brand { display: flex; align-items: center; gap: 12px; }
-.kv-logo {
-    font-size: 26px;
-    filter: drop-shadow(0 0 10px rgba(34,197,94,0.8));
-}
-.kv-brand-text .kv-title-en { font-weight: 800; font-size: 19px; color: #f4fff7; line-height: 1.1; }
-.kv-brand-text .kv-title-ur { font-family: 'Noto Nastaliq Urdu', serif; color: #9be8ac; font-size: 15px; }
-.kv-badge {
-    display: flex; align-items: center; gap: 8px;
-    background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.45);
-    color: #6ee7a4; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 600;
-}
+        if query_text:
+            st.write("**You said (Urdu):**", query_text)
 
-.kv-hero { text-align: center; padding: 10px 0 34px 0; }
-.kv-hero-icon { font-size: 44px; filter: drop-shadow(0 0 18px rgba(34,197,94,0.9)); margin-bottom: 6px; }
-.kv-hero-ur {
-    font-family: 'Noto Nastaliq Urdu', serif; font-size: 26px; color: #ffd75e;
-    text-shadow: 0 0 14px rgba(255,215,94,0.35); margin: 6px 0 14px 0; direction: rtl;
-}
-.kv-hero h1 {
-    font-size: 40px; font-weight: 800; line-height: 1.15; margin: 0;
-    color: #f4fff7;
-}
-.kv-hero h1 .grad {
-    background: linear-gradient(90deg, #22c55e, #bff56a);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 26px rgba(34,197,94,0.35);
-}
-.kv-hero p { color: #a9c9b6; font-size: 15.5px; margin-top: 14px; max-width: 480px; margin-left:auto; margin-right:auto; }
-
-.kv-card {
-    background: linear-gradient(180deg, rgba(15,38,24,0.75), rgba(8,24,15,0.75));
-    border: 1px solid rgba(34,197,94,0.22);
-    border-radius: 22px; padding: 28px 24px; margin-bottom: 22px;
-    box-shadow: 0 0 0 1px rgba(34,197,94,0.03), 0 20px 50px -20px rgba(0,0,0,0.6);
-}
-.kv-section-label {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-family: 'Noto Nastaliq Urdu', serif; font-size: 20px; color: #eafff1;
-    margin-bottom: 2px; direction: rtl;
-}
-.kv-section-label-en {
-    font-size: 11px; letter-spacing: 2px; color: #6ee7a4; text-transform: uppercase;
-    margin-bottom: 14px; margin-top: 2px; font-weight: 600;
-}
-.kv-mic-wrap { text-align: center; padding: 6px 0 4px 0; }
-.kv-mic-caption-ur { font-family: 'Noto Nastaliq Urdu', serif; color: #6ee7a4; font-size: 18px; margin-top: 14px; direction: rtl; }
-.kv-mic-caption-en { color: #8fb8a0; font-size: 13px; margin-top: 2px; }
-
-.kv-chips { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
-.kv-chip {
-    font-family: 'Noto Nastaliq Urdu', serif; direction: rtl;
-    border: 1px solid rgba(34,197,94,0.3); background: rgba(34,197,94,0.06);
-    color: #dff7e6; padding: 8px 16px; border-radius: 999px; font-size: 14px;
-}
-
-/* mic_recorder component container glow */
-iframe {
-    filter: drop-shadow(0 0 24px rgba(34,197,94,0.25));
-}
-
-/* File uploader restyle to look like the dropzone mock */
-[data-testid="stFileUploader"] {
-    border: 2px dashed rgba(34,197,94,0.4) !important;
-    border-radius: 18px !important;
-    background: rgba(34,197,94,0.04) !important;
-    padding: 10px !important;
-}
-[data-testid="stFileUploaderDropzone"] {
-    background: transparent !important;
-}
-[data-testid="stFileUploader"] section {
-    background: transparent !important;
-}
-
-/* "Browse files" button */
-[data-testid="stFileUploader"] button,
-[data-testid="stBaseButton-secondary"] {
-    background: linear-gradient(180deg, #16321f, #0c2015) !important;
-    color: #eafff1 !important;
-    border: 1px solid rgba(34,197,94,0.55) !important;
-    border-radius: 999px !important;
-    box-shadow: 0 0 16px rgba(34,197,94,0.2) !important;
-}
-[data-testid="stFileUploader"] button:hover {
-    border-color: #22c55e !important;
-    box-shadow: 0 0 24px rgba(34,197,94,0.4) !important;
-}
-[data-testid="stFileUploader"] small { color: #8fb8a0 !important; }
-
-/* Uploaded-file preview chip */
-[data-testid="stFileUploaderFile"],
-[data-testid="stFileUploaderFile"] * ,
-[class*="fileUploaderFile"],
-[class*="fileUploaderFile"] * {
-    background: transparent !important;
-    color: #eafff1 !important;
-}
-[data-testid="stFileUploaderFile"] {
-    background: rgba(15,38,24,0.9) !important;
-    border: 1px solid rgba(34,197,94,0.3) !important;
-    border-radius: 12px !important;
-    padding: 6px 10px !important;
-}
-[data-testid="stFileUploaderFile"] svg,
-[class*="fileUploaderFile"] svg {
-    fill: #6ee7a4 !important;
-    stroke: #6ee7a4 !important;
-}
-[data-testid="stFileUploaderFileName"] { color: #eafff1 !important; }
-[data-testid="stFileUploaderFileSize"], small[class*="fileUploaderFileData"] { color: #8fb8a0 !important; }
-
-.kv-divider { text-align:center; color:#3f6650; margin: 8px 0 30px 0; font-size: 12px; letter-spacing:3px; text-transform:uppercase; }
-.kv-divider::before, .kv-divider::after { content:""; }
-
-.kv-footnote { color: #7fa48c; font-size: 12.5px; text-align:center; margin-top: 10px; }
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- Decorative background artwork (original line-art, no external images) ----------------
-st.markdown("""
-<div class="kv-bg-decor">
-  <svg class="stalk-tr" viewBox="0 0 200 420" xmlns="http://www.w3.org/2000/svg">
-    <g stroke="#22c55e" stroke-width="2.5" fill="none" stroke-linecap="round">
-      <path d="M100 415 C 97 300, 103 190, 100 55"/>
-      <path d="M100 320 C 60 300, 30 258, 20 208"/>
-      <path d="M100 298 C 140 278, 165 242, 176 198"/>
-      <path d="M100 248 C 64 233, 40 202, 30 166"/>
-      <path d="M100 228 C 136 213, 159 185, 169 150"/>
-      <path d="M100 55 L84 34"/>
-      <path d="M100 55 L116 34"/>
-      <path d="M100 76 L81 57"/>
-      <path d="M100 76 L119 57"/>
-      <path d="M100 97 L79 80"/>
-      <path d="M100 97 L121 80"/>
-      <path d="M100 118 L81 102"/>
-      <path d="M100 118 L119 102"/>
-      <path d="M100 139 L84 125"/>
-      <path d="M100 139 L116 125"/>
-    </g>
-  </svg>
-  <svg class="stalk-bl" viewBox="0 0 200 420" xmlns="http://www.w3.org/2000/svg">
-    <g stroke="#22c55e" stroke-width="2.5" fill="none" stroke-linecap="round">
-      <path d="M100 415 C 97 300, 103 190, 100 55"/>
-      <path d="M100 320 C 60 300, 30 258, 20 208"/>
-      <path d="M100 298 C 140 278, 165 242, 176 198"/>
-      <path d="M100 248 C 64 233, 40 202, 30 166"/>
-      <path d="M100 228 C 136 213, 159 185, 169 150"/>
-      <path d="M100 55 L84 34"/>
-      <path d="M100 55 L116 34"/>
-      <path d="M100 76 L81 57"/>
-      <path d="M100 76 L119 57"/>
-      <path d="M100 97 L79 80"/>
-      <path d="M100 97 L121 80"/>
-      <path d="M100 118 L81 102"/>
-      <path d="M100 118 L119 102"/>
-      <path d="M100 139 L84 125"/>
-      <path d="M100 139 L116 125"/>
-    </g>
-  </svg>
-  <svg class="leaf-mid" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <path d="M50 95 C20 80, 10 40, 50 5 C90 40, 80 80, 50 95 Z" fill="none" stroke="#22c55e" stroke-width="2.5"/>
-    <path d="M50 88 L50 14" stroke="#22c55e" stroke-width="1.5"/>
-  </svg>
-  <svg class="leaf-mid2" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <path d="M50 95 C20 80, 10 40, 50 5 C90 40, 80 80, 50 95 Z" fill="none" stroke="#22c55e" stroke-width="2.5"/>
-    <path d="M50 88 L50 14" stroke="#22c55e" stroke-width="1.5"/>
-  </svg>
-</div>
-""", unsafe_allow_html=True)
-
-# ---------------- Navbar ----------------
-st.markdown("""
-<div class="kv-navbar">
-    <div class="kv-brand">
-        <div class="kv-logo">🌾</div>
-        <div class="kv-brand-text">
-            <div class="kv-title-en">Kisan Voice Advisor</div>
-            <div class="kv-title-ur">کسان وائس ایڈوائزر</div>
-        </div>
-    </div>
-    <div class="kv-badge">🔊 Urdu Voice AI</div>
-</div>
-""", unsafe_allow_html=True)
-
-# ---------------- Hero ----------------
-st.markdown("""
-<div class="kv-hero">
-    <div class="kv-hero-icon">🌾</div>
-    <div class="kv-hero-ur">اپنی زبان میں سوال پوچھیں</div>
-    <h1>Your farm, <span class="grad">heard &amp;<br/>answered</span></h1>
-    <p>Speak your farming question in Urdu and listen to instant expert advice —
-    or scan a sick leaf and get a treatment plan in seconds.</p>
-</div>
-""", unsafe_allow_html=True)
-
-# ---------------- Voice Q&A ----------------
-st.markdown('<div class="kv-card">', unsafe_allow_html=True)
-st.markdown('<div class="kv-section-label">آواز سے پوچھیں</div>', unsafe_allow_html=True)
-st.markdown('<div class="kv-section-label-en">Ask by voice</div>', unsafe_allow_html=True)
-
-st.markdown('<div class="kv-mic-wrap">', unsafe_allow_html=True)
-audio = mic_recorder(
-    start_prompt="🎤 Speak your question",
-    stop_prompt="⏹ Stop recording",
-    key="recorder"
-)
-st.markdown("""
-    <div class="kv-mic-caption-ur">مائیک دبائیں اور سوال پوچھیں</div>
-    <div class="kv-mic-caption-en">Tap the mic and ask your farming question in Urdu</div>
-""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# The mic button is rendered by streamlit_mic_recorder inside its own sandboxed
-# iframe, so page-level CSS can't reach it. This invisible helper iframe reaches
-# up to the parent page, finds that iframe (same-origin), and injects a
-# stylesheet into it so the button matches the rest of the theme. Re-applied on
-# an interval since Streamlit can redraw the component on rerun.
-components.html("""
-<script>
-function kvStyleMicRecorder() {
-    try {
-        const doc = window.parent.document;
-        const frames = doc.querySelectorAll('iframe');
-        frames.forEach(f => {
-            const title = (f.title || "").toLowerCase();
-            if (title.includes("mic_recorder")) {
-                const idoc = f.contentDocument || (f.contentWindow && f.contentWindow.document);
-                if (idoc && idoc.head && !idoc.getElementById('kv-mic-style')) {
-                    const style = idoc.createElement('style');
-                    style.id = 'kv-mic-style';
-                    style.innerHTML = `
-                        body { background: transparent !important; }
-                        .myButton {
-                            background: linear-gradient(180deg, #16321f, #0c2015) !important;
-                            border: 1px solid rgba(34,197,94,0.55) !important;
-                            color: #eafff1 !important;
-                            border-radius: 999px !important;
-                            padding: 12px 28px !important;
-                            font-weight: 600 !important;
-                            font-size: 15px !important;
-                            font-family: 'Poppins', sans-serif !important;
-                            box-shadow: 0 0 20px rgba(34,197,94,0.25) !important;
-                            transition: box-shadow 0.2s ease, border-color 0.2s ease;
-                        }
-                        .myButton:hover {
-                            border-color: #22c55e !important;
-                            box-shadow: 0 0 28px rgba(34,197,94,0.5) !important;
-                        }
-                    `;
-                    idoc.head.appendChild(style);
-                }
-            }
-        });
-    } catch (e) { /* cross-origin fallback: silently skip */ }
-}
-kvStyleMicRecorder();
-setInterval(kvStyleMicRecorder, 700);
-</script>
-""", height=0)
-
-st.markdown("""
-<div class="kv-chips">
-    <div class="kv-chip">میرے گندم کے پتوں پر پیلے دھبے ہیں، کیا کروں؟</div>
-    <div class="kv-chip">کپاس کو کتنا پانی دوں؟</div>
-    <div class="kv-chip">گندم کے لیے کون سی کھاد بہتر ہے؟</div>
-</div>
-""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-if audio and audio.get("id") != st.session_state.get("last_audio_id"):
-    st.session_state["last_audio_id"] = audio["id"]
-
-    st.audio(audio["bytes"])
-
-    with st.spinner("Listening..."):
-        query_text = transcribe_audio_groq(audio["bytes"])
-
-    if query_text:
-        st.write("**You said (Urdu):**", query_text)
-
-        with st.spinner("Processing reply..."):
-            reply_text = get_agent_reply(query_text)
-
-        if reply_text:
-            st.write("**Advisor reply (Urdu):**", reply_text)
-
-            with st.spinner("Generating voice response..."):
-                reply_audio_bytes = text_to_speech_neural(reply_text, voice="ur-PK-AsadNeural")
-
-            if reply_audio_bytes:
-                st.audio(reply_audio_bytes, format="audio/mp3", autoplay=True)
-    else:
-        st.warning("Audio was unclear. Please try recording again, speaking clearly.")
-
-st.markdown('<div class="kv-divider">— or —</div>', unsafe_allow_html=True)
-
-# ---------------- Crop Disease Photo Upload ----------------
-st.markdown('<div class="kv-card">', unsafe_allow_html=True)
-st.markdown('<div class="kv-section-label">📷 فصل کی تصویر سکین کریں</div>', unsafe_allow_html=True)
-st.markdown('<div class="kv-section-label-en">Scan a sick crop</div>', unsafe_allow_html=True)
-uploaded_image = st.file_uploader(
-    "پتے کی تصویر یہاں ڈالیں یا منتخب کریں  ·  JPG or PNG · tap to browse or drop a photo",
-    type=["jpg", "jpeg", "png"]
-)
-st.markdown('</div>', unsafe_allow_html=True)
-
-if uploaded_image and uploaded_image.file_id != st.session_state.get("last_image_id"):
-    st.session_state["last_image_id"] = uploaded_image.file_id
-
-    st.image(uploaded_image, caption="Uploaded photo", width=300)
-    image_bytes = uploaded_image.read()
-
-    with st.spinner("Analyzing photo (first run may take a minute while the model loads)..."):
-        disease_label, confidence = classify_crop_disease(image_bytes)
-
-    if disease_label:
-        clean_label = disease_label.replace("___", " ").replace("_", " ").strip()
-
-        if confidence < 0.6:
-            st.warning(f"⚠️ Low confidence ({confidence:.0%}) — this doesn't look like a clear match for a known crop disease. Please upload a clear, close-up photo of a single affected leaf.")
-        elif "healthy" in clean_label.lower():
-            st.success(f"**Detected:** {clean_label} ({confidence:.0%} confidence)")
-            st.write("**Advisor says:** ✅ Your plant looks healthy! No treatment needed — keep up your current care routine.")
-        else:
-            st.write(f"**Detected:** {clean_label} ({confidence:.0%} confidence)")
-
-            with st.spinner("Getting advice..."):
-                disease_query = f"Meri fasal ko {clean_label} bimari hai, mujhe kya karna chahiye?"
-                reply_text = get_agent_reply(disease_query)
+            with st.spinner("Processing reply..."):
+                reply_text = get_agent_reply(query_text)
 
             if reply_text:
                 st.write("**Advisor reply (Urdu):**", reply_text)
@@ -525,5 +295,49 @@ if uploaded_image and uploaded_image.file_id != st.session_state.get("last_image
 
                 if reply_audio_bytes:
                     st.audio(reply_audio_bytes, format="audio/mp3", autoplay=True)
+        else:
+            st.warning("Audio was unclear. Please try recording again, speaking clearly.")
 
-    st.caption("⚠️ This is an AI estimate (not a substitute for expert agricultural diagnosis). For best results, use a clear, close-up, well-lit photo of a single affected leaf against a plain background.")
+    st.divider()
+
+    # ---------------- Crop Disease Photo Upload ----------------
+    st.subheader("📷 Or upload a photo of a sick crop")
+    uploaded_image = st.file_uploader("Upload a leaf photo", type=["jpg", "jpeg", "png"])
+
+    if uploaded_image and uploaded_image.file_id != st.session_state.get("last_image_id"):
+        st.session_state["last_image_id"] = uploaded_image.file_id
+
+        st.image(uploaded_image, caption="Uploaded photo", width=300)
+        image_bytes = uploaded_image.read()
+
+        with st.spinner("Analyzing photo (first run may take a minute while the model loads)..."):
+            disease_label, confidence = classify_crop_disease(image_bytes)
+
+        if disease_label:
+            clean_label = disease_label.replace("___", " ").replace("_", " ").strip()
+
+            if confidence < 0.6:
+                st.warning(f"⚠️ Low confidence ({confidence:.0%}) — this doesn't look like a clear match for a known crop disease. Please upload a clear, close-up photo of a single affected leaf.")
+            elif "healthy" in clean_label.lower():
+                st.success(f"**Detected:** {clean_label} ({confidence:.0%} confidence)")
+                st.write("**Advisor says:** ✅ Your plant looks healthy! No treatment needed — keep up your current care routine.")
+            else:
+                st.write(f"**Detected:** {clean_label} ({confidence:.0%} confidence)")
+
+                with st.spinner("Getting advice..."):
+                    disease_query = f"Meri fasal ko {clean_label} bimari hai, mujhe kya karna chahiye?"
+                    reply_text = get_agent_reply(disease_query)
+
+                if reply_text:
+                    st.write("**Advisor reply (Urdu):**", reply_text)
+
+                    with st.spinner("Generating voice response..."):
+                        reply_audio_bytes = text_to_speech_neural(reply_text, voice="ur-PK-AsadNeural")
+
+                    if reply_audio_bytes:
+                        st.audio(reply_audio_bytes, format="audio/mp3", autoplay=True)
+
+        st.caption("⚠️ This is an AI estimate (not a substitute for expert agricultural diagnosis). For best results, use a clear, close-up, well-lit photo of a single affected leaf against a plain background.")
+
+with tab_game:
+    run_farm_simulator()
