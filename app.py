@@ -398,6 +398,20 @@ h1, h2, h3, h4 {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes pageEntrance {
+    from { opacity: 0; transform: scale(0.98); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes titleGlow {
+    0%, 100% { text-shadow: 0 0 8px rgba(242, 214, 117, 0.4); }
+    50%      { text-shadow: 0 0 20px rgba(242, 214, 117, 0.8); }
+}
+.stApp {
+    animation: pageEntrance 0.8s ease-out;
+}
+h1 {
+    animation: titleGlow 3s ease-in-out infinite;
+}
 </style>
 
 <div class="bg-float">🌾</div>
@@ -410,6 +424,20 @@ h1, h2, h3, h4 {
 
 st.set_page_config(page_title="Kisan Voice Advisor", page_icon="🌾")
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+if "welcomed" not in st.session_state:
+    st.session_state.welcomed = True
+    welcome_placeholder = st.empty()
+    with welcome_placeholder.container():
+        st.markdown(
+            "<h2 style='text-align:center; animation: fadeIn 1s ease-in-out;'>🌾 Welcome to Kisan Voice Advisor 🌾</h2>"
+            "<p style='text-align:center; color:#cfe9d6;'>Loading your farm assistant...</p>",
+            unsafe_allow_html=True,
+        )
+    import time
+    time.sleep(1.2)
+    welcome_placeholder.empty()
+
 st.title("🌾 Kisan Voice Advisor")
 
 tab_advisor, tab_game = st.tabs(["🎙️ Voice Advisor", "🎮 Farm Simulator"])
