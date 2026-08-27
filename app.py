@@ -430,12 +430,80 @@ if "welcomed" not in st.session_state:
     welcome_placeholder = st.empty()
     with welcome_placeholder.container():
         st.markdown(
-            "<h2 style='text-align:center; animation: fadeIn 1s ease-in-out;'>🌾 Welcome to Kisan Voice Advisor 🌾</h2>"
-            "<p style='text-align:center; color:#cfe9d6;'>Loading your farm assistant...</p>",
+            """
+            <style>
+            .splash {
+                position: fixed;
+                top: 0; left: 0;
+                width: 100vw; height: 100vh;
+                background: radial-gradient(circle at 50% 50%, #10321d 0%, #06150c 80%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+                animation: splashFadeOut 3.2s ease forwards;
+            }
+            .splash-emoji {
+                font-size: 4.5rem;
+                animation: growPlant 2.4s ease-in-out infinite;
+            }
+            .splash-title {
+                font-size: 2rem;
+                font-weight: 800;
+                color: #f2d675;
+                margin-top: 0.6em;
+                letter-spacing: 1px;
+                text-shadow: 0 0 18px rgba(242, 214, 117, 0.6);
+                animation: fadeIn 1s ease-in-out;
+            }
+            .splash-sub {
+                color: #9fd8ac;
+                margin-top: 0.4em;
+                font-size: 1rem;
+                animation: fadeIn 1.5s ease-in-out;
+            }
+            .splash-bar-track {
+                width: 260px;
+                height: 6px;
+                background: rgba(255,255,255,0.1);
+                border-radius: 4px;
+                margin-top: 1.4em;
+                overflow: hidden;
+            }
+            .splash-bar-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #3fae5c, #f2d675);
+                border-radius: 4px;
+                animation: fillBar 2.8s ease forwards;
+            }
+            @keyframes growPlant {
+                0%   { content: "🌰"; transform: scale(0.9) rotate(-3deg); }
+                50%  { transform: scale(1.15) rotate(3deg); }
+                100% { transform: scale(0.9) rotate(-3deg); }
+            }
+            @keyframes fillBar {
+                from { width: 0%; }
+                to   { width: 100%; }
+            }
+            @keyframes splashFadeOut {
+                0%   { opacity: 1; }
+                80%  { opacity: 1; }
+                100% { opacity: 0; visibility: hidden; }
+            }
+            </style>
+
+            <div class="splash">
+                <div class="splash-emoji">🌱</div>
+                <div class="splash-title">Kisan Voice Advisor</div>
+                <div class="splash-sub">Preparing your farm assistant...</div>
+                <div class="splash-bar-track"><div class="splash-bar-fill"></div></div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
     import time
-    time.sleep(1.2)
+    time.sleep(3.0)
     welcome_placeholder.empty()
 
 st.title("🌾 Kisan Voice Advisor")
