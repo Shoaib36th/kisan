@@ -309,30 +309,103 @@ CUSTOM_CSS = """
 h1, h2, h3, h4 {
     color: #f2d675 !important;
 }
+
+/* ---- Buttons ---- */
 .stButton>button {
     background: linear-gradient(135deg, #1f6b3a, #143d22);
     color: #eaffea;
     border: 1px solid #3fae5c;
     border-radius: 10px;
     padding: 0.5em 1em;
-    transition: all 0.2s ease-in-out;
+    transition: all 0.25s ease-in-out;
 }
 .stButton>button:hover {
     background: linear-gradient(135deg, #2c8a4d, #1c5c30);
     border-color: #67d98a;
-    transform: translateY(-2px);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 4px 14px rgba(76, 175, 80, 0.35);
 }
+
+/* ---- Simulator card ---- */
 .sim-card {
     background: rgba(15, 40, 25, 0.55);
     border: 1px solid rgba(76, 175, 80, 0.35);
     border-radius: 16px;
     padding: 1.2em;
     margin-top: 0.5em;
+    animation: fadeIn 0.5s ease-in-out;
 }
 [data-testid="stMetricValue"] {
     color: #7be495 !important;
 }
+
+/* ---- File uploader restyle ---- */
+[data-testid="stFileUploaderDropzone"] {
+    background: rgba(15, 40, 25, 0.55) !important;
+    border: 1.5px dashed #3fae5c !important;
+    border-radius: 14px !important;
+    transition: all 0.25s ease-in-out;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: #7be495 !important;
+    background: rgba(20, 55, 33, 0.7) !important;
+}
+[data-testid="stFileUploaderDropzone"] button {
+    background: linear-gradient(135deg, #1f6b3a, #143d22) !important;
+    color: #eaffea !important;
+    border: 1px solid #3fae5c !important;
+    border-radius: 8px !important;
+}
+[data-testid="stFileUploaderDropzone"] span,
+[data-testid="stFileUploaderDropzone"] small,
+[data-testid="stFileUploaderDropzone"] div {
+    color: #cfe9d6 !important;
+}
+
+/* ---- Mic recorder wrapper (partial styling — it's an embedded iframe) ---- */
+.mic-wrapper {
+    background: rgba(15, 40, 25, 0.55);
+    border: 1.5px solid rgba(76, 175, 80, 0.35);
+    border-radius: 14px;
+    padding: 0.6em;
+    margin-bottom: 0.5em;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* ---- Floating background crop icons ---- */
+.bg-float {
+    position: fixed;
+    font-size: 2rem;
+    opacity: 0.12;
+    z-index: 0;
+    animation: floatUp 14s linear infinite;
+    pointer-events: none;
+}
+.bg-float:nth-child(1) { left: 5%;  animation-delay: 0s;  }
+.bg-float:nth-child(2) { left: 20%; animation-delay: 3s;  font-size: 2.5rem; }
+.bg-float:nth-child(3) { left: 40%; animation-delay: 6s;  }
+.bg-float:nth-child(4) { left: 65%; animation-delay: 2s;  font-size: 1.6rem; }
+.bg-float:nth-child(5) { left: 80%; animation-delay: 8s;  }
+.bg-float:nth-child(6) { left: 90%; animation-delay: 5s;  font-size: 2.2rem; }
+
+@keyframes floatUp {
+    0%   { transform: translateY(110vh) rotate(0deg);   opacity: 0; }
+    10%  { opacity: 0.12; }
+    90%  { opacity: 0.12; }
+    100% { transform: translateY(-10vh) rotate(25deg);  opacity: 0; }
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
 </style>
+
+<div class="bg-float">🌾</div>
+<div class="bg-float">🌱</div>
+<div class="bg-float">🍃</div>
+<div class="bg-float">🌿</div>
+<div class="bg-float">🌾</div>
+<div class="bg-float">🍃</div>
 """
 
 st.set_page_config(page_title="Kisan Voice Advisor", page_icon="🌾")
@@ -345,11 +418,13 @@ with tab_advisor:
     st.write("Click the mic button, ask your farming question in Urdu, and listen to the reply.")
 
     # ---------------- Voice Q&A ----------------
+    st.markdown('<div class="mic-wrapper">', unsafe_allow_html=True)
     audio = mic_recorder(
         start_prompt="🎤 Speak your question",
         stop_prompt="⏹ Stop recording",
         key="recorder"
     )
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if audio and audio.get("id") != st.session_state.get("last_audio_id"):
         st.session_state["last_audio_id"] = audio["id"]
